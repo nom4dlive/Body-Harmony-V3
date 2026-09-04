@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Telemetry Dashboard - Body Harmony</title>
+    <style>
+        :root {
+            --navy-blue: #0A3E60;
+            --navy-light: #155A7D;
+            --gold: #ED7E13;
+            --gold-light: #FF9D3E;
+            --white: #FFFFFF;
+            --gray-light: #F5F7FA;
+            --gray: #6B7280;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--navy-blue) 0%, var(--navy-light) 100%);
+            color: var(--white);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, var(--white), var(--gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.1rem;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .metric-title {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--gold);
+        }
+
+        .metric-delta {
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .delta-positive {
+            color: var(--success);
+        }
+
+        .delta-negative {
+            color: var(--danger);
+        }
+
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+            padding: 1.5rem;
+            border-radius: 12px;
+            min-height: 300px;
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            color: var(--navy-blue);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--gold);
+        }
+
+        .log-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            padding: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 1rem;
+        }
+
+        .log-timestamp {
+            color: var(--gold);
+            min-width: 150px;
+        }
+
+        .log-level {
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .level-info {
+            background: var(--success);
+            color: white;
+        }
+
+        .level-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .level-error {
+            background: var(--danger);
+            color: white;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--gold);
+            color: var(--navy-blue);
+            border: none;
+            padding: 1rem 1.5rem;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(237, 126, 19, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            background: var(--gold-light);
+            transform: scale(1.05);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            animation: pulse 2s infinite;
+        }
+
+        .status-online {
+            background: var(--success);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .metrics-grid,
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Nexus Telemetry Dashboard</h1>
+            <p class="subtitle">Body Harmony Protocol V3.2 | Monitoramento em Tempo Real</p>
+            <p style="margin-top: 1rem;">
+                <span class="status-indicator status-online"></span>
+                <span id="connection-status">Conectado</span>
+            </p>
+        </header>
+
+        <div id="dashboard-content">
+            <div class="loading">Carregando métricas...</div>
+        </div>
+    </div>
+
+    <button class="refresh-btn" onclick="loadDashboard()">
+        🔄 Atualizar
+    </button>
+
+    <script>
+        // Configuração
+        const TELEMETRY_API = '/infrastructure/telemetry/api.php';
+        const REFRESH_INTERVAL = 30000; // 30 segundos
+
+        async function loadDashboard() {
+            try {
+                // Buscar dados reais da API de telemetria
+                const [overviewRes, metricsRes, logsRes, performanceRes] = await Promise.all([
+                    fetch(TELEMETRY_API + '?action=overview'),
+                    fetch(TELEMETRY_API + '?action=metrics'),
+                    fetch(TELEMETRY_API + '?action=logs&limit=10'),
+                    fetch(TELEMETRY_API + '?action=performance&hours=1')
+                ]);
+
+                const overview = await overviewRes.json();
+                const metrics = await metricsRes.json();
+                const logs = await logsRes.json();
+                const performance = await performanceRes.json();
+
+                if (overview.success && overview.data) {
+                    renderDashboard({ overview, metrics, logs, performance });
+                } else {
+                    throw new Error('Dados inválidos');
+                }
+            } catch (error) {
+                console.warn('Usando dados mock (API indisponível):', error.message);
+                renderDashboard(getMockData());
+            }
+        }
+
+        function getMockData() {
+            return {
+                overview: {
+                    success: true,
+                    data: {
+                        total_events: 0,
+                        events_last_hour: 0,
+                        error_rate_percent: 0,
+                        avg_duration_ms: 0,
+                        health_score: 100,
+                        _mock: true
+                    }
+                },
+                metrics: { success: true, data: {} },
+                logs: { success: true, data: [], total: 0 },
+                performance: { success: true, data: [], period_hours: 1 }
+            };
+        }
+
+        function renderDashboard(data) {
+            const container = document.getElementById('dashboard-content');
+            const { overview, metrics, logs, performance } = data;
+            const o = overview.data || {};
+            
+            // Verifica se é dado mock
+            const isMock = o._mock === true;
+            const mockWarning = isMock ? `
+                <div style="background: rgba(245, 158, 11, 0.2); border: 1px solid var(--warning); 
+                     padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center;">
+                    ⚠️ Dados de demonstração (mock). Execute ações na aplicação para gerar telemetria real.
+                </div>
+            ` : '';
+
+            const logEntries = logs.data || [];
+            const perfData = performance.data || [];
+
+            container.innerHTML = `
+                ${mockWarning}
+                
+                <!-- Cards de Métricas -->
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-title">Eventos (Última Hora)</div>
+                        <div class="metric-value">${o.events_last_hour?.toLocaleString() || 0}</div>
+                        <div class="metric-delta delta-positive">Total: ${(o.total_events || 0).toLocaleString()}</div>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <div class="metric-title">Tempo Médio de Resposta</div>
+                        <div class="metric-value">${Math.round(o.avg_duration_ms || 0)}ms</div>
+                        <div class="metric-delta ${((o.p95_duration_ms || 0) > 500) ? 'delta-negative' : 'delta-positive'}">
+                            P95: ${Math.round(o.p95_duration_ms || 0)}ms
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <div class="metric-title">Taxa de Erro</div>
+                        <div class="metric-value">${(o.error_rate_percent || 0).toFixed(2)}%</div>
+                        <div class="metric-delta ${(o.error_rate_percent || 0) > 1 ? 'delta-negative' : 'delta-positive'}">
+                            ${(o.errors_last_24h || 0)} erros nas últimas 24h
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <div class="metric-title">Memória Média</div>
+                        <div class="metric-value">${(o.avg_memory_mb || 0).toFixed(1)} MB</div>
+                        <div class="metric-delta delta-positive">Estável</div>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <div class="metric-title">Health Score</div>
+                        <div class="metric-value" style="color: ${getHealthColor(o.health_score || 100)}">
+                            ${Math.round(o.health_score || 100)}/100
+                        </div>
+                        <div class="metric-delta delta-positive">
+                            ${getHealthStatus(o.health_score || 100)}
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <div class="metric-title">Eventos (7 dias)</div>
+                        <div class="metric-value">${(o.events_last_7d || 0).toLocaleString()}</div>
+                        <div class="metric-delta delta-positive">Acumulado semanal</div>
+                    </div>
+                </div>
+
+                <!-- Gráficos e Logs -->
+                <div class="charts-section">
+                    <div class="chart-card" style="grid-column: span 2;">
+                        <h3 class="chart-title">⚡ Performance ao Longo do Tempo</h3>
+                        ${perfData.length > 0 ? `
+                            <canvas id="performance-chart"></canvas>
+                            <div style="margin-top: 1rem; text-align: center; color: #666;">
+                                Últimas ${performance.period_hours || 1} hora(s)
+                            </div>
+                        ` : `
+                            <div style="padding: 3rem; text-align: center; color: rgba(255,255,255,0.7);">
+                                📊 Nenhum dado de performance disponível ainda
+                            </div>
+                        `}
+                    </div>
+                    
+                    <div class="chart-card" style="grid-column: span 2;">
+                        <h3 class="chart-title">📝 Logs Recentes</h3>
+                        ${logEntries.length > 0 ? `
+                            <div class="log-container">
+                                ${logEntries.map(log => `
+                                    <div class="log-entry">
+                                        <span class="log-timestamp">${new Date(log.timestamp).toLocaleTimeString('pt-BR')}</span>
+                                        <span class="log-level level-${log.level.toLowerCase()}">${log.level.toUpperCase()}</span>
+                                        <span>${escapeHtml(log.event || '')}${log.message ? ': ' + escapeHtml(log.message) : ''}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : `
+                            <div style="padding: 2rem; text-align: center; color: rgba(255,255,255,0.7);">
+                                📋 Nenhum log registrado ainda
+                            </div>
+                        `}
+                    </div>
+                </div>
+            `;
+
+            // Renderizar gráfico se houver dados
+            if (perfData.length > 0) {
+                renderSimpleChart(perfData);
+            }
+        }
+
+        function getHealthColor(score) {
+            if (score >= 80) return '#10B981';
+            if (score >= 50) return '#F59E0B';
+            return '#EF4444';
+        }
+
+        function getHealthStatus(score) {
+            if (score >= 80) return '✅ Excelente';
+            if (score >= 50) return '⚠️ Atenção';
+            return '🔴 Crítico';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function renderSimpleChart(data) {
+            const canvas = document.getElementById('performance-chart');
+            if (!canvas || data.length === 0) return;
+
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = 250;
+
+            // Filtrar dados com requests > 0
+            const validData = data.filter(d => d.requests > 0);
+            if (validData.length === 0) return;
+
+            const maxDuration = Math.max(...validData.map(d => d.p95_duration_ms || d.avg_duration_ms || 0)) * 1.2 || 100;
+            const stepX = canvas.width / (validData.length - 1 || 1);
+            const stepY = canvas.height / maxDuration;
+
+            // Limpar canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Desenhar grade
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = (canvas.height / 4) * i;
+                ctx.beginPath();
+                ctx.moveTo(40, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Desenhar eixos
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(40, 0);
+            ctx.lineTo(40, canvas.height);
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.stroke();
+
+            // Desenhar linha do gráfico (P95)
+            ctx.strokeStyle = '#ED7E13';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            validData.forEach((point, index) => {
+                const x = 40 + (index * stepX);
+                const y = canvas.height - ((point.p95_duration_ms || point.avg_duration_ms || 0) * stepY);
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+
+            ctx.stroke();
+
+            // Desenhar pontos
+            ctx.fillStyle = '#ED7E13';
+            validData.forEach((point, index) => {
+                const x = 40 + (index * stepX);
+                const y = canvas.height - ((point.p95_duration_ms || point.avg_duration_ms || 0) * stepY);
+                
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Labels do eixo Y
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.font = '11px Segoe UI, sans-serif';
+            for (let i = 0; i <= 4; i++) {
+                const value = Math.round(maxDuration - (maxDuration / 4) * i);
+                const y = (canvas.height / 4) * i + 4;
+                ctx.fillText(value + 'ms', 5, y);
+            }
+
+            // Labels do eixo X (horas)
+            const labelStep = Math.ceil(validData.length / 6);
+            validData.forEach((point, index) => {
+                if (index % labelStep === 0 || index === validData.length - 1) {
+                    const x = 40 + (index * stepX);
+                    const timeLabel = new Date(point.timestamp).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+                    ctx.fillText(timeLabel, x - 20, canvas.height - 5);
+                }
+            });
+        }
+
+        // Auto-refresh
+        setInterval(loadDashboard, REFRESH_INTERVAL);
+
+        // Carregar inicialmente
+        loadDashboard();
+    </script>
+</body>
+</html>

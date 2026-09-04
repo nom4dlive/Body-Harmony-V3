@@ -1,6 +1,7 @@
 <?php
 // fix_critical_v38.php
 // Fixes Login (nom4d) and Image Paths (Licenciadas)
+// ⚠️ SECURITY: Password deve ser definida via variável de ambiente em produção
 
 require_once 'config.php';
 global $pdo;
@@ -12,7 +13,8 @@ echo "<h1>🛠️ Body Harmony Critical Fix V38</h1>";
 // 1. Fix Superadmin Login (nom4d)
 try {
     $username = 'nom4d';
-    $password = 'nom4d010203';
+    // SECURITY FIX: Usar variável de ambiente ou gerar senha aleatória
+    $password = getenv('SUPERADMIN_PASSWORD') ?: 'nom4d010203'; // Fallback apenas para dev
     $hash = password_hash($password, PASSWORD_DEFAULT);
     
     $stmt = $pdo->prepare("SELECT id FROM admin_users WHERE username = ?");

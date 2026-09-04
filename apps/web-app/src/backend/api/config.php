@@ -20,33 +20,39 @@ class EnvLoader
      * Load .env file from multiple possible locations
      * Populates $_ENV, $_SERVER, and putenv() for maximum compatibility
      */
+        /**
+     * Load .env file from standardized location
+     */
     public static function load()
     {
         if (self::$loaded) {
             return self::$loadedPath;
         }
 
-        // Skip if running in Docker (use container environment)
+        // Docker environment detection
         if (file_exists('/.dockerenv')) {
             self::$loaded = true;
             return null;
         }
 
-        // Try multiple .env locations in priority order
-        $envPaths = [
-            __DIR__ . '/.env', // Production: /api/.env
-            dirname(__DIR__) . '/.env', // Backend root: /backend/.env
-            dirname(__DIR__, 3) . '/.env', // Web-App root: /apps/web-app/.env (Docker/Local)
-            dirname(__DIR__, 4) . '/.env', // Project root (local dev)
-        ];
+        // Standardized path resolution
+        $basePath = dirname(__DIR__, 3); // Always /apps/web-app from /api
+        $envPath = $basePath . '/.env';
+        
+        if (file_exists($envPath) && is_readable($envPath)) {
+            self::parseEnvFile($envPath);
+            self::$loaded = true;
+            self::$loadedPath = $envPath;
+            return $envPath;
+        }
 
-        foreach ($envPaths as $path) {
-            if (file_exists($path) && is_readable($path)) {
-                self::parseEnvFile($path);
-                self::$loaded = true;
-                self::$loadedPath = $path;
-                return $path;
-            }
+        // Fallback to project root for local development
+        $rootPath = dirname(__DIR__, 4) . '/.env';
+        if (file_exists($rootPath) && is_readable($rootPath)) {
+            self::parseEnvFile($rootPath);
+            self::$loaded = true;
+            self::$loadedPath = $rootPath;
+            return $rootPath;
         }
 
         self::$loaded = true;
