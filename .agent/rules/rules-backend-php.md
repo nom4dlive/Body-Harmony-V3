@@ -156,3 +156,28 @@ Ação:
 - **PIX Tri-Channel**: Toda criação de cobrança PIX deve retornar o QR Code dinâmico, o Copia e Cola, e a URL da fatura oficial hospedada (`invoiceUrl`), além de disponibilizar a chave aleatória direta da conta jurídica para contingência imediata de transferência bancária manual.
 - **Cartão Hosted-First sem Carnê**: Para pagamentos parcelados onde haja risco de titularidade divergente (ex: uso de cartão da mãe ou parente), o backend deve gerar a cobrança avulsa com `billing_type: UNDEFINED` sem gerar carnês futuros, retornando `invoice_url` para conclusão no ambiente blindado 3DS do Asaas.
 
+🛡️ REGRA 84: Invariante de Resolução Multi-Caminho de Configurações de Ambiente (.env Multi-Path Invariant)
+Diretriz: O carregador de variáveis de ambiente (`EnvLoader::load()`) no backend monolítico deve suportar nativamente e de forma defensiva todos os contextos de execução (Produção Hostinger `/public_html/api/.env`, `/public_html/.env`, raiz de domínio `/domains/.../.env` e ambientes locais de desenvolvimento). É estritamente proibido restringir o carregador a uma profundidade única de diretório (`dirname(__DIR__, N)`).
+Ação:
+O array canônico de caminhos em `apps/web-app/src/backend/api/config.php` deve sempre manter a cadeia:
+```php
+$envPaths = [
+    __DIR__ . '/.env',                 // Hostinger Produção: /public_html/api/.env
+    dirname(__DIR__) . '/.env',        // Hostinger Web Root: /public_html/.env
+    dirname(__DIR__, 2) . '/.env',     // Hostinger Domain Root
+    dirname(__DIR__, 3) . '/.env',     // Web-App Local Root
+    dirname(__DIR__, 4) . '/.env',     // Repositório Local
+    dirname(__DIR__, 5) . '/.env'      // Workspace Raiz
+];
+```
+
+🛡️ REGRA 85: Invariante de Validação de Sessão Desacoplada e Modo Admin Ghost (Decoupled Device Session & Ghost Admin Invariant)
+Diretriz: Em ecossistemas com múltiplos portais (LMS Licenciadas / Portal Gestor) onde administradores podem logar ou simular sessões de alunas/licenciadas com identificadores virtuais negativos (`id < 0`), a validação de sessão (`X-Device-Token` e `validateLicenciadaSession`) deve obrigatoriamente utilizar consultas SQL desacopladas em 2 etapas em vez de `LEFT JOIN` rígido sobre colunas de tabelas de perfil.
+Ação:
+1. **Etapa 1 (Token Check)**: Consultar `licenciada_devices` diretamente pelo `device_token`.
+2. **Etapa 2 (Identity Resolution)**:
+   - Se `licenciada_id < 0`, resolver o usuário em `admin_users` pelo ID absoluto (`abs($licenciada_id)`), preservando seu papel de administrador e liberando acesso total.
+   - Se `licenciada_id > 0`, resolver o usuário na tabela `licenciadas`.
+3. **Compatibilidade Simétrica de Payload**: Endpoints de validação de sessão devem sempre retornar tanto a chave `'licenciada'` quanto `'student'`, blindando o handshake dos contextos React (`LicenciadaAuthContext`) contra regressões de chave de payload.
+
+
