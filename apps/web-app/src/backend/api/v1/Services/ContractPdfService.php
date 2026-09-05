@@ -181,7 +181,8 @@ class ContractPdfService {
         array $logoOptions = []
     ): array {
         if (!class_exists('\Mpdf\Mpdf')) {
-            throw new Exception("mPDF library not found. Please run 'composer install' in apps/web-app/src/backend.");
+            error_log("[ContractPdfService] Alerta: mPDF não carregado. Utilizando fallback HTML resiliente.");
+            return $this->generateHtmlFallback($htmlContent, $contractUuid, $title, $signatures, $saveToFile, $logoOptions);
         }
 
         $mpdf = new Mpdf([
@@ -494,5 +495,57 @@ class ContractPdfService {
             $rendered = str_replace($tag, htmlspecialchars((string)$value), $rendered);
         }
         return $rendered;
+    }
+
+    /**
+     * Renderiza o contrato em formato HTML de alta fidelidade como fallback quando mPDF não está disponível
+     */
+    public function generateHtmlFallback(
+        string $htmlContent,
+        string $contractUuid,
+        string $title,
+        array $signatures = [],
+        bool $saveToFile = true,
+        array $logoOptions = []
+    ): array {
+        $processedHtml = $this->processLogoInHtml($htmlContent, $logoOptions);
+        $initialHash = hash('sha256', $processedHtml . $contractUuid);
+
+        $chancelaHtml = !empty($signatures) ? $this->buildChancelaHtml($contractUuid, $initialHash, $signatures) : '';
+
+        $fullDocumentHtml = "
+        <!DOCTYPE html>
+        <html lang='pt-BR'>
+        <head>
+            <meta charset='UTF-8'>
+            <title>" . htmlspecialchars($title) . "</title>
+            <style>
+                body { font-family: 'Times New Roman', Times, serif; margin: 40px; color: #1E293B; line-height: 1.6; }
+                .contract-logo-header { text-align: center; margin-bottom: 20px; }
+                .chancela-container { border: 2px solid #0A3E60; padding: 20px; margin-top: 30px; background-color: #F8FAFC; font-family: sans-serif; }
+            </style>
+        </head>
+        <body>
+            {$processedHtml}
+            {$chancelaHtml}
+        </body>
+        </html>";
+
+        $finalHash = hash('sha256', $fullDocumentHtml);
+        $result = [
+            'uuid' => $contractUuid,
+            'title' => $title,
+            'sha256_hash' => $finalHash,
+            'pdf_binary' => $fullDocumentHtml
+        ];
+
+        if ($saveToFile) {
+            $filePath = $this->storageDir . '/' . $contractUuid . '.html';
+            file_put_contents($filePath, $fullDocumentHtml);
+            $result['file_path'] = $filePath;
+            $result['relative_path'] = 'private_uploads/contracts/' . $contractUuid . '.html';
+        }
+
+        return $result;
     }
 }

@@ -244,6 +244,18 @@ class LmsController {
             $stmt->execute([$this->user['id']]);
             $resources = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
+            // Fallback de resiliência: se a tabela de acessos individuais estiver vazia, retornar recursos públicos aprovados
+            if (empty($resources)) {
+                try {
+                    $fallbackSql = "SELECT * FROM lms_resources WHERE is_active = 1 AND status = 'approved' ORDER BY created_at DESC LIMIT 50";
+                    $stmtFallback = $this->pdo->prepare($fallbackSql);
+                    $stmtFallback->execute();
+                    $resources = $stmtFallback->fetchAll(PDO::FETCH_ASSOC);
+                } catch (\Throwable $e) {
+                    $resources = [];
+                }
+            }
+            
             // Add signed URLs for secure download and streaming
             $resourceService = new ResourceService($this->pdo);
             foreach ($resources as &$res) {

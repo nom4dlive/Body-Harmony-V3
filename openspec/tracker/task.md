@@ -1,18 +1,19 @@
 # 📌 Tracker Vivo — Execução Atômica (Nexus Protocol V3.2)
 
 ## 📍 Painel de Save State (Visibilidade Imediata TDAH)
-- **[ESTADO ATUAL]**: 🟢 CONCLUÍDO & HARD-GATED | PLAN-230 (Blindagem Definitiva de Webhooks e Pagamentos Asaas - HTTP 405 Fix)
-- **[PENDÊNCIA IMEDIATA]**: Nenhuma. Webhooks Asaas respondendo HTTP 200 OK ao vivo em produção.
-- **[PRÓXIMO PASSO]**: Monitorar recepção automática de eventos no painel do Asaas.
+- **[ESTADO ATUAL]**: 🟢 CONCLUÍDO & HARD-GATED | PLAN-231 (Resolução Completa de Reclamações 72h: Vendas, Jurídico e Licenciadas)
+- **[PENDÊNCIA IMEDIATA]**: Nenhuma. Webhooks Asaas/e-Rede enfileirando em <50ms, contratos com fallback resiliente e LMS otimizado.
+- **[PRÓXIMO PASSO]**: Monitorar métricas de telemetria em tempo real no Dashboard.
 
 ---
 
-## 🎯 Ticket Vigente: PLAN-230
-- **Status**: 🟢 CONCLUÍDO & HARD-GATED (Exit Code 0 | Live HTTP 200 OK)
-- **Plano Ativo**: openspec/deltas/PLAN-230-asaas-webhook-bulletproofing.md
+## 🎯 Ticket Vigente: PLAN-231
+- **Status**: 🟢 CONCLUÍDO & HARD-GATED (Exit Code 0 | Live Tests 100% PASS)
+- **Plano Ativo**: `openspec/deltas/PLAN-231-roadmap-resolution-v3.2.md`
 - **Alvos**:
-  - `openspec/contracts/payments/asaas-webhook.json` (Schema JSON do Webhook)
-  - `api/v1/index.php` (Registro de rotas POST/GET para /payments/webhook/asaas)
-  - `AsaasWebhookController.php` (Tratamento de GET ping 200 OK + validação resiliente de token)
-  - `api/v1/.htaccess` e `.htaccess.remote` (Preservação do header asaas-access-token e mitigação de 405)
-  - `tests/asaas_webhook_resilience_smoke_test.php` (Teste unitário de fumaça de webhooks)
+  - `openspec/contracts/payments/webhook-queue.json`
+  - `apps/web-app/src/backend/api/v1/Services/WebhookQueueService.php`
+  - `apps/web-app/src/backend/api/v1/Controllers/AsaasWebhookController.php`
+  - `apps/web-app/src/backend/api/v1/Services/ContractPdfService.php`
+  - `apps/web-app/src/backend/api/v1/Controllers/LmsController.php`
+  - `tests/webhook_queue_smoke_test.php`

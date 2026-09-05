@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Asaas Webhook Gateway Contract (Nexus Protocol V3.2)",
+  "type": "object",
+  "properties": {
+    "event": {
+      "type": "string",
+      "enum": [
+        "PAYMENT_CREATED",
+        "PAYMENT_UPDATED",
+        "PAYMENT_CONFIRMED",
+        "PAYMENT_RECEIVED",
+        "PAYMENT_OVERDUE",
+        "PAYMENT_DELETED",
+        "PAYMENT_REFUNDED"
+      ]
+    },
+    "payment": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customer": { "type": "string" },
+        "value": { "type": "number" },
+        "netValue": { "type": "number" },
+        "billingType": { "type": "string" },
+        "status": { "type": "string" },
+        "externalReference": { "type": "string" }
+      },
+      "required": ["id", "status"]
+    }
+  },
+  "required": ["event", "payment"]
+}

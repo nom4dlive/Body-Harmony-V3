@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WebhookQueueItemContract",
+  "type": "object",
+  "required": [
+    "provider",
+    "event_type",
+    "payload",
+    "received_at"
+  ],
+  "properties": {
+    "provider": {
+      "type": "string",
+      "enum": ["asaas", "erede", "stone"]
+    },
+    "event_type": {
+      "type": "string"
+    },
+    "payment_id": {
+      "type": ["string", "null"]
+    },
+    "external_reference": {
+      "type": ["string", "null"]
+    },
+    "payload": {
+      "type": "object"
+    },
+    "received_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["PENDING", "PROCESSING", "PROCESSED", "FAILED"]
+    },
+    "retry_count": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

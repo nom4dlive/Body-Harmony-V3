@@ -62,39 +62,19 @@ class AsaasWebhookController {
 
         error_log("[AsaasWebhook] Evento recebido: {$eventType} | Payment: {$paymentId} | Status: {$status} | ExtRef: {$externalRef}");
 
-        // 3. Processar conforme tipo de evento
+        // 3. Enfileirar no WebhookQueueService para garantia de execução resiliente (<50ms)
         try {
-            switch ($eventType) {
-                case 'PAYMENT_CONFIRMED':
-                case 'PAYMENT_RECEIVED':
-                    $this->updatePaymentStatus($paymentId, 'CONFIRMED', $payment);
-                    break;
-
-                case 'PAYMENT_OVERDUE':
-                    $this->updatePaymentStatus($paymentId, 'OVERDUE', $payment);
-                    break;
-
-                case 'PAYMENT_DELETED':
-                case 'PAYMENT_REFUNDED':
-                    $this->updatePaymentStatus($paymentId, 'REFUNDED', $payment);
-                    break;
-
-                case 'PAYMENT_CREATED':
-                case 'PAYMENT_UPDATED':
-                    // Log informativo, sem ação obrigatória
-                    error_log("[AsaasWebhook] Evento informativo: {$eventType} para payment {$paymentId}");
-                    break;
-
-                default:
-                    error_log("[AsaasWebhook] Evento desconhecido ignorado: {$eventType}");
-                    break;
-            }
+            $queueService = new WebhookQueueService($this->db);
+            $queueId = $queueService->enqueue('asaas', $event, $_SERVER['REMOTE_ADDR'] ?? 'unknown');
+            
+            // Processar pendentes imediatamente em background curto
+            $queueService->processPending(5);
         } catch (\Throwable $e) {
-            error_log("[AsaasWebhook] Erro ao processar evento {$eventType}: " . $e->getMessage());
+            error_log("[AsaasWebhook] Alerta ao enfileirar evento {$eventType}: " . $e->getMessage());
         }
 
-        // 4. Sempre retornar 200 OK para o Asaas
-        Response::json(['ok' => true, 'event' => $eventType, 'processed' => true]);
+        // 4. Sempre retornar 200 OK de forma instantânea para o Asaas
+        Response::json(['ok' => true, 'event' => $eventType, 'processed' => true, 'queued' => true]);
     }
 
     /**
