@@ -634,24 +634,70 @@ class AuthController {
         }
 
         $stmt = $this->pdo->prepare("
-            SELECT s.*, sd.last_used_at 
+            SELECT sd.licenciada_id, sd.last_used_at, sd.is_active AS device_active,
+                   s.id AS student_id, s.name, s.email, s.username, s.cpf, s.phone, s.instagram, s.photo_url, s.is_active, s.force_password_change, s.max_devices
             FROM licenciada_devices sd
             LEFT JOIN licenciadas s ON sd.licenciada_id = s.id
             WHERE sd.device_token = ?
         ");
         $stmt->execute([$token]);
-        $data = $stmt->fetch(PDO::FETCH_ASSOC);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$data) {
+        if (!$row) {
              Response::error('Sessão inválida.', 401);
         }
 
-        // Admin Fallback Check
-        if ($data['id'] < 0) {
-            // It's an admin logged in as student. Skip active check on student table as it's virtual.
-            $data['is_active'] = 1;
-        } else if (!$data['is_active']) {
-             Response::error('Conta desativada.', 403);
+        if (!$row['device_active']) {
+             Response::error('Sessão encerrada.', 401);
+        }
+
+        $licenciadaId = (int)$row['licenciada_id'];
+        $data = null;
+
+        // Admin Fallback Check (licenciadaId < 0)
+        if ($licenciadaId < 0) {
+            $adminId = abs($licenciadaId);
+            $stmtAdmin = $this->pdo->prepare("SELECT * FROM admin_users WHERE id = ? LIMIT 1");
+            $stmtAdmin->execute([$adminId]);
+            $admin = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+            if (!$admin) {
+                Response::error('Sessão de administrador inválida.', 401);
+            }
+            $data = [
+                'id' => $licenciadaId,
+                'name' => ucfirst($admin['username']) . ' (Admin)',
+                'username' => $admin['username'],
+                'email' => $admin['email'] ?? ($admin['username'] . '@bodyharmony.com.br'),
+                'instagram' => '@' . $admin['username'],
+                'photo_url' => 'https://ui-avatars.com/api/?name=Admin&background=000&color=fff',
+                'is_active' => 1,
+                'force_password_change' => 0,
+                'max_devices' => 999,
+                'role' => $admin['role'] ?? 'admin',
+                'last_used_at' => $row['last_used_at']
+            ];
+        } else if ($row['student_id']) {
+            if (!$row['is_active']) {
+                Response::error('Conta desativada.', 403);
+            }
+            $data = [
+                'id' => (int)$row['student_id'],
+                'name' => $row['name'],
+                'email' => $row['email'],
+                'username' => $row['username'],
+                'cpf' => $row['cpf'],
+                'phone' => $row['phone'],
+                'instagram' => $row['instagram'],
+                'photo_url' => $row['photo_url'],
+                'is_active' => (int)$row['is_active'],
+                'force_password_change' => (int)$row['force_password_change'],
+                'max_devices' => (int)$row['max_devices'],
+                'last_used_at' => $row['last_used_at']
+            ];
+        }
+
+        if (!$data) {
+            Response::error('Sessão inválida.', 401);
         }
 
         // Update last used
@@ -660,6 +706,7 @@ class AuthController {
         unset($data['password_hash']);
         Response::json([
             'success' => true,
+            'licenciada' => $data,
             'student' => $data,
             'valid' => true
         ]);

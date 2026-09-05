@@ -128,7 +128,8 @@ class AuthMiddleware {
 
         // 2. Check Licenciada Devices (X-Device-Token)
         $stmt = $this->pdo->prepare("
-            SELECT d.*, s.id as licenciada_id, s.name, s.is_active, s.max_devices, s.force_password_change
+            SELECT d.id AS device_id, d.licenciada_id, d.device_token, d.is_active AS device_active,
+                   s.id AS student_id, s.name AS student_name, s.is_active AS student_active, s.max_devices, s.force_password_change
             FROM licenciada_devices d
             LEFT JOIN licenciadas s ON d.licenciada_id = s.id
             WHERE d.device_token = ? AND d.is_active = 1
@@ -137,19 +138,39 @@ class AuthMiddleware {
         $device = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($device) {
-            // Check if it's a real student and if they are active
-            if ($device['licenciada_id'] > 0 && !$device['is_active']) return null;
+            $licId = (int)$device['licenciada_id'];
+            if ($licId < 0) {
+                $adminId = abs($licId);
+                $stmtAdmin = $this->pdo->prepare("SELECT * FROM admin_users WHERE id = ? LIMIT 1");
+                $stmtAdmin->execute([$adminId]);
+                $admin = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+                if (!$admin) return null;
+
+                $this->pdo->prepare("UPDATE licenciada_devices SET last_used_at = NOW() WHERE id = ?")->execute([$device['device_id']]);
+
+                return [
+                    'id' => $licId,
+                    'name' => ucfirst($admin['username']) . ' (Admin)',
+                    'device_id' => $device['device_id'],
+                    'role' => $admin['role'] ?? 'admin',
+                    'is_admin' => true,
+                    'force_password_change' => false
+                ];
+            }
+
+            // Real licenciada
+            if ($licId > 0 && !$device['student_active']) return null;
 
             // Update usage
-            $this->pdo->prepare("UPDATE licenciada_devices SET last_used_at = NOW() WHERE id = ?")->execute([$device['id']]);
+            $this->pdo->prepare("UPDATE licenciada_devices SET last_used_at = NOW() WHERE id = ?")->execute([$device['device_id']]);
 
             // Construct user object
             $user = [
-                'id' => $device['licenciada_id'],
-                'name' => $device['name'],
-                'device_id' => $device['id'],
-                'role' => ($device['licenciada_id'] < 0) ? 'admin' : 'licenciada',
-                'is_admin' => ($device['licenciada_id'] < 0),
+                'id' => $licId,
+                'name' => $device['student_name'],
+                'device_id' => $device['device_id'],
+                'role' => 'licenciada',
+                'is_admin' => false,
                 'force_password_change' => (bool)($device['force_password_change'] ?? 0)
             ];
             
