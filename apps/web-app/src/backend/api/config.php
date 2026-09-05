@@ -20,9 +20,6 @@ class EnvLoader
      * Load .env file from multiple possible locations
      * Populates $_ENV, $_SERVER, and putenv() for maximum compatibility
      */
-        /**
-     * Load .env file from standardized location
-     */
     public static function load()
     {
         if (self::$loaded) {
@@ -35,24 +32,23 @@ class EnvLoader
             return null;
         }
 
-        // Standardized path resolution
-        $basePath = dirname(__DIR__, 3); // Always /apps/web-app from /api
-        $envPath = $basePath . '/.env';
-        
-        if (file_exists($envPath) && is_readable($envPath)) {
-            self::parseEnvFile($envPath);
-            self::$loaded = true;
-            self::$loadedPath = $envPath;
-            return $envPath;
-        }
+        // Try multiple .env locations in priority order (Production, Docker, Local)
+        $envPaths = [
+            __DIR__ . '/.env',                 // Production: /public_html/api/.env
+            dirname(__DIR__) . '/.env',        // Backend root / public_html: /public_html/.env
+            dirname(__DIR__, 2) . '/.env',     // Domain root: /domains/bodyharmony.com.br/.env
+            dirname(__DIR__, 3) . '/.env',     // Web-App root: /apps/web-app/.env (Local)
+            dirname(__DIR__, 4) . '/.env',     // Project root (local dev)
+            dirname(__DIR__, 5) . '/.env',     // Workspace root
+        ];
 
-        // Fallback to project root for local development
-        $rootPath = dirname(__DIR__, 4) . '/.env';
-        if (file_exists($rootPath) && is_readable($rootPath)) {
-            self::parseEnvFile($rootPath);
-            self::$loaded = true;
-            self::$loadedPath = $rootPath;
-            return $rootPath;
+        foreach ($envPaths as $path) {
+            if (file_exists($path) && is_readable($path)) {
+                self::parseEnvFile($path);
+                self::$loaded = true;
+                self::$loadedPath = $path;
+                return $path;
+            }
         }
 
         self::$loaded = true;
