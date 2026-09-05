@@ -633,25 +633,20 @@ class AuthController {
              Response::error('Token ausente.', 401);
         }
 
-        $stmt = $this->pdo->prepare("
-            SELECT sd.licenciada_id, sd.last_used_at, sd.is_active AS device_active,
-                   s.id AS student_id, s.name, s.email, s.username, s.cpf, s.phone, s.instagram, s.photo_url, s.is_active, s.force_password_change, s.max_devices
-            FROM licenciada_devices sd
-            LEFT JOIN licenciadas s ON sd.licenciada_id = s.id
-            WHERE sd.device_token = ?
-        ");
+        // 1. Query device token directly
+        $stmt = $this->pdo->prepare("SELECT * FROM licenciada_devices WHERE device_token = ?");
         $stmt->execute([$token]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $device = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$row) {
+        if (!$device) {
              Response::error('Sessão inválida.', 401);
         }
 
-        if (!$row['device_active']) {
+        if (isset($device['is_active']) && !$device['is_active']) {
              Response::error('Sessão encerrada.', 401);
         }
 
-        $licenciadaId = (int)$row['licenciada_id'];
+        $licenciadaId = (int)$device['licenciada_id'];
         $data = null;
 
         // Admin Fallback Check (licenciadaId < 0)
@@ -674,26 +669,19 @@ class AuthController {
                 'force_password_change' => 0,
                 'max_devices' => 999,
                 'role' => $admin['role'] ?? 'admin',
-                'last_used_at' => $row['last_used_at']
+                'last_used_at' => $device['last_used_at'] ?? date('Y-m-d H:i:s')
             ];
-        } else if ($row['student_id']) {
-            if (!$row['is_active']) {
-                Response::error('Conta desativada.', 403);
+        } else {
+            $stmtLic = $this->pdo->prepare("SELECT * FROM licenciadas WHERE id = ? LIMIT 1");
+            $stmtLic->execute([$licenciadaId]);
+            $lic = $stmtLic->fetch(PDO::FETCH_ASSOC);
+            if ($lic) {
+                if (isset($lic['is_active']) && !$lic['is_active']) {
+                    Response::error('Conta desativada.', 403);
+                }
+                $data = $lic;
+                $data['last_used_at'] = $device['last_used_at'] ?? null;
             }
-            $data = [
-                'id' => (int)$row['student_id'],
-                'name' => $row['name'],
-                'email' => $row['email'],
-                'username' => $row['username'],
-                'cpf' => $row['cpf'],
-                'phone' => $row['phone'],
-                'instagram' => $row['instagram'],
-                'photo_url' => $row['photo_url'],
-                'is_active' => (int)$row['is_active'],
-                'force_password_change' => (int)$row['force_password_change'],
-                'max_devices' => (int)$row['max_devices'],
-                'last_used_at' => $row['last_used_at']
-            ];
         }
 
         if (!$data) {
